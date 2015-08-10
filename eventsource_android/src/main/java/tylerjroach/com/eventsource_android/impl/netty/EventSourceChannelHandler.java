@@ -38,10 +38,10 @@ public class EventSourceChannelHandler extends SimpleChannelUpstreamHandler impl
 
     private final EventSourceHandler eventSourceHandler;
     private final ClientBootstrap bootstrap;
-    private final URI uri;
     private final Map<String, String> headers;
     private final EventStreamParser messageDispatcher;
 
+    private URI uri, requestUri;
     private final Timer timer = new HashedWheelTimer();
     private Channel channel;
     private boolean reconnectOnClose = true;
@@ -51,6 +51,11 @@ public class EventSourceChannelHandler extends SimpleChannelUpstreamHandler impl
     private boolean headerDone;
     private Integer status;
     private AtomicBoolean reconnecting = new AtomicBoolean(false);
+
+    public EventSourceChannelHandler(EventSourceHandler eventSourceHandler, long reconnectionTimeMillis, ClientBootstrap bootstrap, URI uri, URI requestUri, Map<String, String> headers){
+        this(eventSourceHandler, reconnectionTimeMillis, bootstrap,uri, headers);
+        this.requestUri = requestUri;
+    }
 
     public EventSourceChannelHandler(EventSourceHandler eventSourceHandler, long reconnectionTimeMillis, ClientBootstrap bootstrap, URI uri, Map<String, String> headers) {
         this.eventSourceHandler = eventSourceHandler;
@@ -68,7 +73,17 @@ public class EventSourceChannelHandler extends SimpleChannelUpstreamHandler impl
 
     @Override
     public void channelConnected(ChannelHandlerContext ctx, ChannelStateEvent e) throws Exception {
-        HttpRequest request = new DefaultHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.GET, uri.toString());
+
+        //URI uri2 = new URI(uri.toString().substring(uri.toString().lastIndexOf("/http")))     ;
+        HttpRequest request;
+
+        if(requestUri != null){
+          request = new DefaultHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.GET, "/"+requestUri.toString());
+        }
+        else {
+            request = new DefaultHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.GET, uri.toString());
+        }
+
         request.addHeader(Names.ACCEPT, "text/event-stream");
 
         if (headers != null) {
@@ -76,9 +91,8 @@ public class EventSourceChannelHandler extends SimpleChannelUpstreamHandler impl
                 request.addHeader(entry.getKey(), entry.getValue());
             }
         }
-
         request.addHeader(Names.HOST, uri.getHost());
-        request.addHeader(Names.ORIGIN, uri.getScheme()+"://" + uri.getHost());
+        request.addHeader(Names.ORIGIN, uri.getScheme() + "://" + uri.getHost());
         request.addHeader(Names.CACHE_CONTROL, "no-cache");
         if (lastEventId != null) {
             request.addHeader("Last-Event-ID", lastEventId);
@@ -94,7 +108,7 @@ public class EventSourceChannelHandler extends SimpleChannelUpstreamHandler impl
 
     @Override
     public void channelClosed(ChannelHandlerContext ctx, ChannelStateEvent e) throws Exception {
-    	eventSourceHandler.onClosed(reconnectOnClose);
+        eventSourceHandler.onClosed(reconnectOnClose);
         if (reconnectOnClose) {
             reconnect();
         }
@@ -138,7 +152,7 @@ public class EventSourceChannelHandler extends SimpleChannelUpstreamHandler impl
     @Override
     public void exceptionCaught(ChannelHandlerContext ctx, ExceptionEvent e) throws Exception {
         Throwable error = e.getCause();
-        if(error instanceof ConnectException) {
+        if (error instanceof ConnectException) {
             error = new EventSourceException("Failed to connect to " + uri, error);
         }
         eventSourceHandler.onError(error);
@@ -170,15 +184,15 @@ public class EventSourceChannelHandler extends SimpleChannelUpstreamHandler impl
     }
 
     private void reconnect() {
-        if(!reconnecting.get()) {
+        if (!reconnecting.get()) {
             reconnecting.set(true);
             timer.newTimeout(new TimerTask() {
                 @Override
                 public void run(Timeout timeout) throws Exception {
                     reconnecting.set(false);
                     int port = uri.getPort();
-                    if (port==-1) {
-                    	port = (uri.getScheme().equals("https"))?443:80;
+                    if (port == -1) {
+                        port = (uri.getScheme().equals("https")) ? 443 : 80;
                     }
                     bootstrap.setOption("remoteAddress", new InetSocketAddress(uri.getHost(), port));
                     bootstrap.connect().await();
