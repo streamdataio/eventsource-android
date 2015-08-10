@@ -1,8 +1,7 @@
 # eventsource-android
 
 An Android EventSource (SSE) Library
-This is a Java implementation of the EventSource - a client for Server-Sent Events. The implementation is based on Netty.
-
+This is a Java implementation of the EventSource - a client for Server-Sent Events. The implementation is based on Netty
 
 This project is based of off EventSource-Java:
 https://github.com/aslakhellesoy/eventsource-java
@@ -22,7 +21,6 @@ Example implementation:
             public void run() {
                 try {
                     eventSource = new EventSource(Uri, new SSEHandler(), extraHeaderParameters);
-                    /* eventSource = new EventSource(UriProxy, UriApi, new SSEHandler(), extraHeaderParameters)*/
                     eventSource.connect();
                 } catch(URISyntaxException e) {
                     Log.v("Error starting eventsource", "True");
