@@ -211,4 +211,11 @@ public class EventSource implements EventSourceHandler {
     public EventSourceHandler getEventSourceHandler(){
         return eventSourceHandler;
     }
+    
+    @Override
+    protected void finalize() throws Throwable {
+        super.finalize();
+
+        bootstrap.getFactory().releaseExternalResources();
+    }
 }
