@@ -6,8 +6,6 @@ import org.jboss.netty.channel.ChannelPipeline;
 import org.jboss.netty.channel.ChannelPipelineFactory;
 import org.jboss.netty.channel.Channels;
 import org.jboss.netty.channel.socket.nio.NioClientSocketChannelFactory;
-import org.jboss.netty.handler.codec.frame.DelimiterBasedFrameDecoder;
-import org.jboss.netty.handler.codec.frame.Delimiters;
 import org.jboss.netty.handler.codec.http.HttpRequestEncoder;
 import org.jboss.netty.handler.codec.string.StringDecoder;
 import org.jboss.netty.handler.ssl.SslHandler;
@@ -53,10 +51,12 @@ public class EventSource implements EventSourceHandler {
      * @see #close()
      */
     public EventSource(Executor executor, long reconnectionTimeMillis, final URI pURI, URI requestUri, EventSourceHandler eventSourceHandler, Map<String, String> headers) {
-        this(executor, reconnectionTimeMillis, pURI,requestUri,  null, eventSourceHandler, headers);
+        this(executor, reconnectionTimeMillis, pURI, requestUri, null, eventSourceHandler, headers);
     }
+
+
     public EventSource(Executor executor, long reconnectionTimeMillis, final URI pURI, EventSourceHandler eventSourceHandler, Map<String, String> headers) {
-           this(executor, reconnectionTimeMillis, pURI, null, eventSourceHandler, headers);
+        this(executor, reconnectionTimeMillis, pURI, null, eventSourceHandler, headers);
     }
 
 
@@ -77,12 +77,14 @@ public class EventSource implements EventSourceHandler {
 
         uri = pURI;
         int port = uri.getPort();
+        // handle default port values
         if (port == -1) {
             port = (uri.getScheme().equals("https")) ? 443 : 80;
         }
+
         bootstrap.setOption("remoteAddress", new InetSocketAddress(uri.getHost(), port));
 
-        // add this class as the event source handler so the connect() call can be intercepted
+        // add this class as the event source handler so the connect() call can be intercepted.
         AsyncEventSourceHandler asyncHandler = new AsyncEventSourceHandler(executor, this);
 
         clientHandler = new EventSourceChannelHandler(asyncHandler, reconnectionTimeMillis, bootstrap, uri, requestUri, headers);
@@ -94,13 +96,15 @@ public class EventSource implements EventSourceHandler {
                 if (SSLFactory != null) {
                     SSLEngine sslEngine = SSLFactory.GetNewSSLEngine();
                     sslEngine.setUseClientMode(true);
+                    // add handling of https connection
                     pipeline.addLast("ssl", new SslHandler(sslEngine));
                 }
 
-                pipeline.addLast("line", new DelimiterBasedFrameDecoder(Integer.MAX_VALUE, Delimiters.lineDelimiter()));
+                // simply decode flow as string
                 pipeline.addLast("string", new StringDecoder());
-
+                // simple encode request as HTTP request
                 pipeline.addLast("encoder", new HttpRequestEncoder());
+                // add our own event source handler
                 pipeline.addLast("es-handler", clientHandler);
                 return pipeline;
             }
@@ -118,7 +122,6 @@ public class EventSource implements EventSourceHandler {
     public EventSource(URI uri, URI requestUri, SSLEngineFactory sslEngineFactory, EventSourceHandler eventSourceHandler, Map<String, String> headers) {
         this(Executors.newSingleThreadExecutor(), DEFAULT_RECONNECTION_TIME_MILLIS, uri, requestUri, sslEngineFactory, eventSourceHandler, headers);
     }
-
 
 
     public EventSource(String uri, EventSourceHandler eventSourceHandler) {
@@ -146,7 +149,6 @@ public class EventSource implements EventSourceHandler {
     public ChannelFuture connect() {
         readyState = CONNECTING;
 
-        //To avoid perpetual "SocketUnresolvedException"
         int port = uri.getPort();
         if (port == -1) {
             port = (uri.getScheme().equals("https")) ? 443 : 80;
@@ -208,10 +210,11 @@ public class EventSource implements EventSourceHandler {
         eventSourceHandler.onClosed(willReconnect);
     }
 
-    public EventSourceHandler getEventSourceHandler(){
+    public EventSourceHandler getEventSourceHandler() {
         return eventSourceHandler;
     }
-    
+
+
     @Override
     protected void finalize() throws Throwable {
         super.finalize();

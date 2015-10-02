@@ -23,7 +23,8 @@ public class MessageEvent {
         MessageEvent that = (MessageEvent) o;
 
         if (data != null ? !data.equals(that.data) : that.data != null) return false;
-        if (lastEventId != null ? !lastEventId.equals(that.lastEventId) : that.lastEventId != null) return false;
+        if (lastEventId != null ? !lastEventId.equals(that.lastEventId) : that.lastEventId != null)
+            return false;
         if (origin != null ? !origin.equals(that.origin) : that.origin != null) return false;
 
         return true;
