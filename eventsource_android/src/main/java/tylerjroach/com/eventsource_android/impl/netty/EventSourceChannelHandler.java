@@ -129,11 +129,11 @@ public class EventSourceChannelHandler extends SimpleChannelUpstreamHandler impl
         String messageAsString = (String) e.getMessage();
 
         String[] lines = messageAsString.split("\n");
-        int l = 0;
+        //int l = 0;
         for (String dirtyLine : lines) {
             String line = dirtyLine.replace("\r", "");
-            l++;
-            Log.d(EventSourceChannelHandler.class.getName(), "line" + l + ": " + line);
+            //l++;
+            //Log.d(EventSourceChannelHandler.class.getName(), "line" + l + ": " + line);
             if (!headerDone) {
                 if (status == null) {
                     // checking Status header
@@ -145,7 +145,7 @@ public class EventSourceChannelHandler extends SimpleChannelUpstreamHandler impl
                             reconnect();
                             break;
                         }
-                        Log.d(EventSourceChannelHandler.class.getName(), "--- HTTP CONNECTED");
+                        //Log.d(EventSourceChannelHandler.class.getName(), "--- HTTP CONNECTED");
                     } else {
                         eventSourceHandler.onError(new EventSourceException("Not HTTP? " + uri + ": " + line));
                         reconnect();
@@ -155,7 +155,7 @@ public class EventSourceChannelHandler extends SimpleChannelUpstreamHandler impl
                 // checking Content-Type header
                 if (CONTENT_TYPE_PATTERN.matcher(line).matches()) {
                     eventStreamOk = true;
-                    Log.d(EventSourceChannelHandler.class.getName(), "--- SSE DETECTED");
+                    //Log.d(EventSourceChannelHandler.class.getName(), "--- SSE DETECTED");
                 }
                 // ignoring other headers
                 if (line.isEmpty()) {
@@ -173,7 +173,7 @@ public class EventSourceChannelHandler extends SimpleChannelUpstreamHandler impl
                 // data flow: data line or data chunk
                 if (isChunkStart(line)) {
                     // ignoring chunk size in case of chunk transfer Encoding
-                    Log.d(EventSourceChannelHandler.class.getName(), "CHUNK WITH SIZE: " + line);
+                    //Log.d(EventSourceChannelHandler.class.getName(), "CHUNK WITH SIZE: " + line);
                 } else {
                     String[] eventLines = line.split("\n");
 
@@ -181,11 +181,11 @@ public class EventSourceChannelHandler extends SimpleChannelUpstreamHandler impl
                         if (eventLine.startsWith("event:")) {
                             // dispatching new event
                             messageDispatcher.line(eventLine);
-                            Log.d(EventSourceChannelHandler.class.getName(), "SSE EVENT: " + eventLine);
+                            //Log.d(EventSourceChannelHandler.class.getName(), "SSE EVENT: " + eventLine);
                         } else if (eventLine.startsWith("id:")) {
                             // dispatching event id
                             messageDispatcher.line(eventLine);
-                            Log.d(EventSourceChannelHandler.class.getName(), "SSE EVENT ID: " + eventLine);
+                            //Log.d(EventSourceChannelHandler.class.getName(), "SSE EVENT ID: " + eventLine);
                         } else if (eventLine.startsWith("data:")) {
                             // append first line to data : data may be chunked
                             data.append(eventLine);
@@ -193,7 +193,9 @@ public class EventSourceChannelHandler extends SimpleChannelUpstreamHandler impl
                             // end of data : dispatch aggregated data
                             messageDispatcher.line(data.toString());
                             // prepare next event data buffer
-                            Log.d(EventSourceChannelHandler.class.getName(), "SSE EVENT DATA: " + data.toString());
+                            //Log.d(EventSourceChannelHandler.class.getName(), "SSE EVENT DATA: " + data.toString());
+                            // dispatch the end line (empty line) in order to dispatch the event
+                            messageDispatcher.line(eventLine);                            
                             data = new StringBuffer();
                         } else {
                             // new data chunk to append
