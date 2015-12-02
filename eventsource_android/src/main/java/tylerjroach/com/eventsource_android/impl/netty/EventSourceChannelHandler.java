@@ -128,7 +128,7 @@ public class EventSourceChannelHandler extends SimpleChannelUpstreamHandler impl
     public void messageReceived(ChannelHandlerContext ctx, MessageEvent e) throws Exception {
         String messageAsString = (String) e.getMessage();
 
-        String[] lines = messageAsString.split("\n");
+        String[] lines = messageAsString.split("\n",-1);
         //int l = 0;
         for (String dirtyLine : lines) {
             String line = dirtyLine.replace("\r", "");
@@ -175,7 +175,7 @@ public class EventSourceChannelHandler extends SimpleChannelUpstreamHandler impl
                     // ignoring chunk size in case of chunk transfer Encoding
                     //Log.d(EventSourceChannelHandler.class.getName(), "CHUNK WITH SIZE: " + line);
                 } else {
-                    String[] eventLines = line.split("\n");
+                    String[] eventLines = line.split("\n",-1);
 
                     for (String eventLine : eventLines) {
                         if (eventLine.startsWith("event:")) {
@@ -189,7 +189,7 @@ public class EventSourceChannelHandler extends SimpleChannelUpstreamHandler impl
                         } else if (eventLine.startsWith("data:")) {
                             // append first line to data : data may be chunked
                             data.append(eventLine);
-                        } else if (eventLine.isEmpty()) {
+                        } else if (eventLine.isEmpty() && data.length() != 0) {
                             // end of data : dispatch aggregated data
                             messageDispatcher.line(data.toString());
                             // prepare next event data buffer
