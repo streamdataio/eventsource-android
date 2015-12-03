@@ -1,5 +1,7 @@
 package tylerjroach.com.eventsource_android;
 
+import android.util.Log;
+
 import org.jboss.netty.bootstrap.ClientBootstrap;
 import org.jboss.netty.channel.ChannelFuture;
 import org.jboss.netty.channel.ChannelPipeline;
@@ -15,6 +17,7 @@ import java.net.URI;
 import java.util.Map;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import javax.net.ssl.SSLEngine;
 
@@ -28,9 +31,10 @@ public class EventSource implements EventSourceHandler {
     public static final int OPEN = 1;
     public static final int CLOSED = 2;
 
-    private final ClientBootstrap bootstrap;
-    private final EventSourceChannelHandler clientHandler;
-    private final EventSourceHandler eventSourceHandler;
+    private static AtomicInteger count = new AtomicInteger(1);
+    private ClientBootstrap bootstrap;
+    private EventSourceChannelHandler clientHandler;
+    private EventSourceHandler eventSourceHandler;
 
     private URI uri, requestUri;
     private Map<String, String> headers;
@@ -109,6 +113,7 @@ public class EventSource implements EventSourceHandler {
                 return pipeline;
             }
         });
+        connect();
     }
 
     public EventSource(URI proxyPrefixUri, URI requestUri, EventSourceHandler eventSourceHandler, Map<String, String> headers) {
@@ -146,7 +151,7 @@ public class EventSource implements EventSourceHandler {
     }
 
 
-    public ChannelFuture connect() {
+    private ChannelFuture connect() {
         readyState = CONNECTING;
 
         int port = uri.getPort();
@@ -169,17 +174,8 @@ public class EventSource implements EventSourceHandler {
     public EventSource close() {
         readyState = CLOSED;
         clientHandler.close();
-        return this;
-    }
-
-    /**
-     * Wait until the connection is closed
-     *
-     * @return self
-     * @throws InterruptedException if waiting was interrupted
-     */
-    public EventSource join() throws InterruptedException {
-        clientHandler.join();
+        setEventSourceHandler(null);
+        Log.d(EventSource.class.getName(), "eventSource closed:" + count.getAndIncrement());
         return this;
     }
 
@@ -189,36 +185,51 @@ public class EventSource implements EventSourceHandler {
         readyState = OPEN;
 
         // pass event to the proper handler
-        eventSourceHandler.onConnect();
+        if (eventSourceHandler != null) {
+            eventSourceHandler.onConnect();
+        }
     }
 
     @Override
     public void onMessage(String event, MessageEvent message) throws Exception {
         // pass event to the proper handler
-        eventSourceHandler.onMessage(event, message);
+        if (eventSourceHandler != null) {
+            eventSourceHandler.onMessage(event, message);
+        }
     }
 
     @Override
     public void onError(Throwable t) {
         // pass event to the proper handler
-        eventSourceHandler.onError(t);
+        if (eventSourceHandler != null) {
+            eventSourceHandler.onError(t);
+        }
     }
 
     @Override
     public void onClosed(boolean willReconnect) {
         // pass event to the proper handler
-        eventSourceHandler.onClosed(willReconnect);
+        if (eventSourceHandler != null) {
+            eventSourceHandler.onClosed(willReconnect);
+        }
     }
 
     public EventSourceHandler getEventSourceHandler() {
         return eventSourceHandler;
     }
 
+    public void setEventSourceHandler(EventSourceHandler eventSourceHandler) {
+        this.eventSourceHandler = eventSourceHandler;
+    }
 
     @Override
     protected void finalize() throws Throwable {
         super.finalize();
 
+        setEventSourceHandler(null);
+        clientHandler = null;
         bootstrap.getFactory().releaseExternalResources();
+        bootstrap.releaseExternalResources();
+        bootstrap = null;
     }
 }
